@@ -1,0 +1,35 @@
+# Environment variables
+**/.env
+**/.env.*
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/venv/
+**/env/
+**/.venv/
+**/build/
+**/dist/
+**/*.egg-info/
+
+# Node
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+**/out/
+
+# VS Code / IDE
+**/.vscode/
+**/.idea/
+**/*.vsix
+
+# Project specific / Test outputs
+**/.stackdecide/
+**/output*.txt
+**/output_brief.json
+**/test_output*/
+**/*.log
+
+
