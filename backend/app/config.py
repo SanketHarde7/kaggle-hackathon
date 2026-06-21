@@ -11,8 +11,19 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+runtime_settings = {
+    "llm_provider": None,
+    "llm_api_key": None
+}
+
+def get_active_provider() -> Optional[str]:
+    return runtime_settings["llm_provider"] or settings.llm_provider
+
+def get_active_api_key() -> Optional[str]:
+    return runtime_settings["llm_api_key"] or settings.llm_api_key
+
 def ensure_provider_configured() -> None:
-    if not settings.llm_provider or not settings.llm_api_key:
+    if not get_active_provider() or not get_active_api_key():
         raise HTTPException(
             status_code=400,
             detail="No LLM provider configured. Please set your API key in StackDecide settings."

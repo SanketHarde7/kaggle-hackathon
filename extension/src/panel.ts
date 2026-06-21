@@ -1,14 +1,23 @@
 import * as vscode from 'vscode';
+import { getWebviewContent } from './ui';
+import { BackendClient } from './backendClient';
 
 export class StackDecidePanel {
     public static currentPanel: StackDecidePanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
 
+    private _backendClient: BackendClient;
+
     private constructor(panel: vscode.WebviewPanel) {
         this._panel = panel;
+        this._backendClient = new BackendClient();
+        
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel.webview.options = { enableScripts: true };
         this._panel.webview.html = this._getHtmlForWebview();
+
+        this._setWebviewMessageListener(this._panel.webview);
     }
 
     public static createOrShow(extensionUri: vscode.Uri) {
@@ -43,17 +52,73 @@ export class StackDecidePanel {
     }
 
     private _getHtmlForWebview() {
-        return `<!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>StackDecide</title>
-            </head>
-            <body>
-                <h1>StackDecide</h1>
-                <p>Coming soon</p>
-            </body>
-            </html>`;
+        return getWebviewContent();
+    }
+
+    private _setWebviewMessageListener(webview: vscode.Webview) {
+        webview.onDidReceiveMessage(
+            async (message: any) => {
+                switch (message.command) {
+                    case 'analyze':
+                        const query = message.query;
+                        const manualContext = message.manualContext || undefined;
+                        
+                        const workspaceFolders = vscode.workspace.workspaceFolders;
+                        if (!workspaceFolders || workspaceFolders.length === 0) {
+                            webview.postMessage({
+                                command: 'analysisError',
+                                error: 'Open a project folder in VS Code to use StackDecide.'
+                            });
+                            return;
+                        }
+                        
+                        const workspacePath = workspaceFolders[0].uri.fsPath;
+
+                        try {
+                            const brief = await this._backendClient.analyze(query, workspacePath, manualContext);
+                            webview.postMessage({ command: 'analysisResult', brief });
+                        } catch (err: any) {
+                            // Map HTTP errors to specific messages
+                            let errMsg = err.message || "An unknown error occurred.";
+                            if (err.status === 401) {
+                                errMsg = "Your API key was rejected — check it in Settings.";
+                            } else if (err.status === 422) {
+                                errMsg = "The backend failed to produce a valid DecisionBrief JSON.";
+                            }
+                            
+                            webview.postMessage({ command: 'analysisError', error: errMsg });
+                        }
+                        return;
+
+                    case 'saveSettings':
+                        try {
+                            await this._backendClient.saveSettings(message.provider, message.apiKey);
+                            webview.postMessage({ command: 'settingsSaved' });
+                        } catch (err: any) {
+                            webview.postMessage({ command: 'settingsError', error: err.message || 'Failed to save settings' });
+                        }
+                        return;
+
+                    case 'getSettings':
+                        try {
+                            const settings = await this._backendClient.getSettings();
+                            webview.postMessage({ 
+                                command: 'settingsLoaded', 
+                                provider: settings.provider, 
+                                configured: settings.configured 
+                            });
+                        } catch (err) {
+                            console.error("Failed to load settings from backend", err);
+                        }
+                        return;
+
+                    case 'copyToClipboard':
+                        vscode.env.clipboard.writeText(message.text);
+                        return;
+                }
+            },
+            undefined,
+            this._disposables
+        );
     }
 }

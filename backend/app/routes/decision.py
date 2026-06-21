@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import DecisionRequest, DecisionResponse
-from app.config import settings, ensure_provider_configured
+from app.config import ensure_provider_configured, get_active_provider, get_active_api_key
 from app.providers.factory import get_provider
 from app.providers.base import (
     ProviderAuthError, ProviderRateLimitError, 
@@ -17,7 +17,7 @@ router = APIRouter()
 async def analyze_decision_route(request: DecisionRequest):
     ensure_provider_configured()
     
-    provider = get_provider(settings.llm_provider, settings.llm_api_key)
+    provider = get_provider(get_active_provider(), get_active_api_key())
     
     # Auto-detect context
     project_context = detect_project_context(request.workspace_path)
