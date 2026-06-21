@@ -1,8 +1,8 @@
 # StackDecide
 
-**Stop letting your AI coding agent make silent architecture decisions for you.**
+**Should you use Zustand or Redux? SQLite or Postgres? REST or WebSockets? StackDecide researches it, reasons about it from four angles, and tells you — with real-time information, not stale training data — before you ask your AI coding agent to just pick one for you.**
 
-StackDecide is a VS Code extension + agentic backend that researches, reasons about, and explains technical decisions — *before* you hand them off to an AI coding agent (like Antigravity,Codex, or any other) — so you understand **what** is being chosen and **why**, with real-time information instead of stale training data.
+StackDecide is a VS Code extension + agentic backend that helps you **choose libraries, frameworks, and architecture patterns** for your project. You type a decision question in plain English. It researches current options on the live web, reasons about the tradeoffs against your actual codebase, and gives you a clear recommendation — plus a ready-to-paste prompt to hand the decision off to Codex, Antigravity, or any AI coding agent.
 
 > Built for the **AI Agents: Intensive Vibe Coding Capstone Project** (Kaggle x Google) — Concierge Agents track.
 
@@ -10,21 +10,22 @@ StackDecide is a VS Code extension + agentic backend that researches, reasons ab
 
 ## The Problem
 
-"Vibe coding" — describing what you want in natural language and letting an AI agent write the code — is incredibly productive. But it has a quiet failure mode: **the AI silently picks the architecture for you.**
+"Vibe coding" — describing what you want in natural language and letting an AI agent write the code — is incredibly productive. But it has a quiet failure mode: **the AI silently picks your libraries and architecture for you, and you rarely find out it had other options.**
 
-Ask an AI coding agent to "add state management" and it picks a library. Ask it to "add caching" and it picks a strategy. It rarely tells you:
-- What alternatives existed
-- Why it picked this one over the others
-- Whether its choice is still the *current* best practice, or just what was popular when it was trained
-- Whether the choice even fits the project you're actually building
+Tell an AI coding agent "add state management to my React app" and it will just pick Zustand, or Redux, or Context API — whichever it leans toward — and start writing code. Ask it to "store this data somewhere" and it picks SQLite, or Postgres, or a JSON file, without telling you:
 
-Over time, this produces codebases full of decisions nobody actually made on purpose — including the developer who's supposed to own the architecture.
+- **What else it considered** (did it even compare alternatives, or just default to the first one it knows well?)
+- **Why this one** (is there an actual reason, or is it just statistically common in its training data?)
+- **Whether that reason still holds today** (a library that was the obvious choice two years ago may be poorly maintained now — the AI's training data doesn't know that)
+- **Whether it actually fits *your* project** (your existing stack, your team size, your free-tier budget — context the AI usually isn't given)
+
+Over time, this produces codebases full of library and architecture choices nobody actually made on purpose — including the developer who's supposed to own those decisions.
 
 ## The Solution
 
 StackDecide sits between you and your coding agent. Before you ask Codex/Antigravity/etc. to implement something architecturally significant, you ask StackDecide first. It:
 
-1. **Researches the decision in real time** — not from stale training data, but from live web search, so it reflects current library trends, maintenance status, and community sentiment.
+1. **Researches the actual library/framework comparison in real time** — e.g. "is Zustand still the right call in 2026, or has the ecosystem moved on?" — using live web search, not the LLM's stale training data.
 2. **Reasons about it from four angles** — performance/scalability, maintainability, cost/free-tier feasibility, and fit with *your actual project* — and explicitly critiques its own first-draft answer before finalizing.
 3. **Knows your real project** — it auto-detects your actual stack (`package.json`, `requirements.txt`, file structure) rather than reasoning in the abstract.
 4. **Remembers past decisions** in this project, so it stays consistent instead of contradicting itself query to query.
@@ -37,43 +38,43 @@ StackDecide sits between you and your coding agent. Before you ask Codex/Antigra
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  VS Code Extension (TypeScript)                        │
-│  ┌──────────────────┐        ┌──────────────────────┐  │
-│  │  Analysis View    │        │  Settings View         │   
-│  │  - query input    │        │  - provider dropdown   │   
-│  │  - decision brief │        │    (BYOK)              │  
-│  │  - copy-to-agent  │        │  - API key (masked)    │  
-│  └──────────────────┘        └──────────────────────┘  │
+│  VS Code Extension (TypeScript)                         │
+│  ┌──────────────────┐        ┌──────────────────────┐   │
+│  │  Analysis View    │        │  Settings View      │   │
+│  │  - query input    │        │  - provider dropdown│   │
+│  │  - decision brief │        │    (BYOK)           │   │
+│  │  - copy-to-agent  │        │  - API key (masked) │   │
+│  └──────────────────┘        └──────────────────────┘   │
 └───────────────────────┬──────────────────────────────────┘
                         │ REST (localhost)
-┌───────────────────────▼─────────────────────────────────────┐
-│  FastAPI Backend (Python)                                   │
-│                                                             │
-│  1. Context Merge                                           │
-│     auto-detected project stack + manual override           │
-│     (detects monorepo sibling sub-projects)                 │
-│                                                             │
-│  2. Web Research (Tavily API)                               │
-│     LLM plans 3-5 targeted search queries → concurrent      │
-│     search → dedup + clean → structured findings            │
-│                                                             │
-│  3. Multi-Angle Self-Critique Reasoning (agentic loop)      │
-│     Stage 1: initial draft                                  │
-│     Stage 2: 4 concurrent critique passes                   │
-│              (performance / maintainability / cost / fit)   │
-│     Stage 3: synthesis — resolves disagreements, or flags   │
+┌───────────────────────▼──────────────────────────────────┐
+│  FastAPI Backend (Python)                                │
+│                                                          │
+│  1. Context Merge                                        │
+│     auto-detected project stack + manual override        │
+│     (detects monorepo sibling sub-projects)              │
+│                                                          │
+│  2. Web Research (Tavily API)                            │
+│     LLM plans 3-5 targeted search queries → concurrent   │
+│     search → dedup + clean → structured findings         │
+│                                                          │
+│  3. Multi-Angle Self-Critique Reasoning (agentic loop)   │
+│     Stage 1: initial draft                               |
+│     Stage 2: 4 concurrent critique passes                │
+│              (performance / maintainability / cost / fit)│
+│     Stage 3: synthesis — resolves disagreements, or flags│
 │              a context-domain mismatch instead of forcing one│
-│                                                             │
-│  4. Project Memory (.stackdecide/memory.json)               │
-│     past decisions persist per-project; token-budgeted      │
-│     context injection prioritizes topically related history │
-│                                                             │
-│  5. Prompt Generator                                        │
-│     formats the final brief into a ready-to-paste agent prompt│
-│     (or a clarification request, if a mismatch was flagged)│
-│                                                             │
-│  LLM Providers (BYOK): Gemini · Claude · GPT · Grok · Groq · OpenRouter|
-└────────────────────────────────────────────────────────────────────────┘
+│                                                          │
+│  4. Project Memory (.stackdecide/memory.json)          │
+│     past decisions persist per-project; token-budgeted   │
+│     context injection prioritizes topically related history│
+│                                                          │
+│  5. Codex Prompt Generator                               │
+│     formats the final brief into a ready-to-paste agent prompt │
+│     (or a clarification request, if a mismatch was flagged)  
+│                                                          │
+│  LLM Providers (BYOK): Gemini · Claude · GPT · Grok · Groq · OpenRouter │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Why this counts as agentic, not just "a chatbot with extra steps"
