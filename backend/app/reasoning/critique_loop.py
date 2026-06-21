@@ -4,6 +4,7 @@ import logging
 import time
 from app.providers.base import LLMProvider
 from app.models.schemas import DecisionBrief
+from app.memory.context_builder import build_memory_context
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ async def _stage1_initial_draft(
     user_query: str,
     project_context: dict,
     research_findings: str,
+    memory_context: str,
     provider: LLMProvider,
 ) -> str:
     """Stage 1: Generate initial recommendation draft."""
@@ -52,6 +54,16 @@ PROJECT CONTEXT:
 
 RESEARCH FINDINGS (real-time web research):
 {research_findings}
+
+PAST DECISIONS HISTORY:
+{memory_context}
+(Note: You MUST stay consistent with these past decisions unless there's a strong reason to deviate. If you do deviate, you MUST explicitly say so and justify it.)
+
+CRITICAL DOMAIN MISMATCH CHECK:
+Before producing a recommendation, evaluate if the user's query domain is actually compatible with the detected project context (e.g., asking about JS frontend libraries in a pure Python backend project).
+If there is a clear domain mismatch:
+- DO NOT invent a nonsensical or fake "equivalent" recommendation.
+- INSTEAD, explicitly flag the mismatch. If `sibling_projects_detected` is in the context, explicitly cross-reference it (e.g., "This looks like a frontend question, but the current context is backend. I found a sibling frontend/ folder, consider running this against that workspace path").
 
 Based on the above research findings and project context, provide your initial recommendation.
 Cover:
@@ -89,6 +101,7 @@ PRELIMINARY RECOMMENDATION (Stage 1 draft):
 Your task: Challenge the above recommendation from the {angle_description} perspective.
 You MUST explicitly state whether you AGREE, PARTIALLY DISAGREE, or DISAGREE with the Stage 1 draft from this angle, and explain why.
 Do not just restate the draft positively — be genuinely critical where warranted.
+NOTE: If the Stage 1 draft flagged a "domain mismatch" (e.g., wrong language/framework for the project), evaluate if that mismatch is accurate. Do NOT force a technical critique of the library itself if it fundamentally doesn't belong in the project.
 
 Respond with a concise but thorough critique (3-6 sentences)."""
 
@@ -131,12 +144,14 @@ CRITIQUES FROM MULTIPLE ANGLES (Stage 2):
 
 Synthesize the preliminary recommendation with all critiques into a final decision brief.
 Where critiques raised disagreements, explicitly resolve them (e.g., "the performance critique raised X concern; this is addressed/outweighed by Y").
+CRITICAL: If Stage 1 or the critiques flagged a context/domain mismatch (e.g., asking about a JS library in a Python backend), you MUST populate the `context_mismatch_warning` field explaining the mismatch and referencing any `sibling_projects_detected`. If there is a mismatch, do NOT force a hallucinated recommendation.
 
 Return ONLY a valid JSON object (no markdown fences, no extra text) with exactly this structure:
 {{
   "options_considered": ["option1", "option2", ...],
-  "final_recommendation": "The recommended choice and a brief justification",
+  "final_recommendation": "The recommended choice and a brief justification (or a statement explaining the mismatch if applicable)",
   "reasoning_summary": "2-3 sentence summary of the overall reasoning",
+  "context_mismatch_warning": "Clear explanation of the domain mismatch including sibling references, OR null if no mismatch",
   "angle_breakdown": {{
     "performance_scalability": "Brief note on this angle's assessment",
     "maintainability_dev_effort": "Brief note on this angle's assessment",
@@ -165,11 +180,16 @@ async def analyze_decision(
 ) -> DecisionBrief:
     """Full 3-stage reasoning pipeline: draft -> critique -> synthesis."""
 
+    # Stage 0: Build Memory Context
+    logger.info("Stage 0: Building memory context...")
+    workspace_path = project_context.get("workspace_path", "")
+    memory_context = build_memory_context(workspace_path, user_query)
+    
     # Stage 1: Initial draft (sequential, required)
     logger.info("Stage 1: Generating initial draft...")
     stage1_start = time.time()
     stage1_draft = await _stage1_initial_draft(
-        user_query, project_context, research_findings, provider
+        user_query, project_context, research_findings, memory_context, provider
     )
     logger.info(f"Stage 1 completed in {time.time() - stage1_start:.2f}s")
 

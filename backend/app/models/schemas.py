@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 
 class DecisionRequest(BaseModel):
     query: str
@@ -10,7 +10,8 @@ class DecisionBrief(BaseModel):
     options_considered: list[str]
     final_recommendation: str
     reasoning_summary: str
-    angle_breakdown: dict[str, str]
+    context_mismatch_warning: Optional[str] = None
+    angle_breakdown: Dict[str, str]
     tradeoffs: list[str]
 
 class DecisionResponse(BaseModel):
