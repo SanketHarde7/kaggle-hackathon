@@ -62,6 +62,7 @@ export class StackDecidePanel {
                     case 'analyze':
                         const query = message.query;
                         const manualContext = message.manualContext || undefined;
+                        const proceedAnyway = message.proceed_anyway || false;
                         
                         const workspaceFolders = vscode.workspace.workspaceFolders;
                         if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -75,24 +76,31 @@ export class StackDecidePanel {
                         const workspacePath = workspaceFolders[0].uri.fsPath;
 
                         try {
-                            const brief = await this._backendClient.analyze(query, workspacePath, manualContext);
-                            webview.postMessage({ command: 'analysisResult', brief });
+                            const result = await this._backendClient.analyze(query, workspacePath, manualContext, proceedAnyway);
+                            if (result && result.requires_approval) {
+                                webview.postMessage({
+                                    command: 'approvalRequired',
+                                    decision_count: result.decision_count,
+                                    decisions: result.decisions,
+                                });
+                            } else {
+                                webview.postMessage({ command: 'analysisResult', brief: result });
+                            }
                         } catch (err: any) {
-                            // Map HTTP errors to specific messages
                             let errMsg = err.message || "An unknown error occurred.";
                             if (err.status === 401) {
                                 errMsg = "Your API key was rejected — check it in Settings.";
                             } else if (err.status === 422) {
                                 errMsg = "The backend failed to produce a valid DecisionBrief JSON.";
                             }
-                            
                             webview.postMessage({ command: 'analysisError', error: errMsg });
                         }
                         return;
 
+
                     case 'saveSettings':
                         try {
-                            await this._backendClient.saveSettings(message.provider, message.apiKey);
+                            await this._backendClient.saveSettings(message.provider, message.apiKey, message.tavilyApiKey);
                             webview.postMessage({ command: 'settingsSaved' });
                         } catch (err: any) {
                             webview.postMessage({ command: 'settingsError', error: err.message || 'Failed to save settings' });
@@ -105,7 +113,8 @@ export class StackDecidePanel {
                             webview.postMessage({ 
                                 command: 'settingsLoaded', 
                                 provider: settings.provider, 
-                                configured: settings.configured 
+                                configured: settings.configured,
+                                tavilyConfigured: settings.tavily_configured
                             });
                         } catch (err) {
                             console.error("Failed to load settings from backend", err);
