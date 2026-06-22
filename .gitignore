@@ -32,4 +32,7 @@
 **/test_output*/
 **/*.log
 
-
+# Tests
+**/test_*.py
+**/*.test.*
+**/*.spec.*
