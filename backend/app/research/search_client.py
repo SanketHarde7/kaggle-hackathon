@@ -1,18 +1,22 @@
 import httpx
-from app.config import settings
+from app.config import get_active_tavily_key
 
 class SearchProviderError(Exception):
     pass
 
+class SearchProviderAuthError(Exception):
+    pass
+
 async def search(query: str, max_results: int = 5) -> list[dict]:
-    if not settings.tavily_api_key:
+    tavily_key = get_active_tavily_key()
+    if not tavily_key:
         raise SearchProviderError("Tavily API key is not configured.")
         
     url = "https://api.tavily.com/search"
     payload = {
-        "api_key": settings.tavily_api_key,
+        "api_key": tavily_key,
         "query": query,
-        "search_depth": "basic",
+        "search_depth": "advanced",
         "include_answer": False,
         "include_images": False,
         "include_raw_content": False,
@@ -35,5 +39,9 @@ async def search(query: str, max_results: int = 5) -> list[dict]:
                     "url": result.get("url", "")
                 })
             return results
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code in (401, 403):
+            raise SearchProviderAuthError("Your Tavily API key appears to be invalid.")
+        raise SearchProviderError(f"Search failed with status: {e.response.status_code}")
     except Exception as e:
         raise SearchProviderError(f"Search failed: {e}")
