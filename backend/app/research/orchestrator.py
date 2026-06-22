@@ -1,7 +1,7 @@
 import asyncio
 from app.providers.base import LLMProvider
 from app.research.query_planner import plan_queries
-from app.research.search_client import search
+from app.research.search_client import search, SearchProviderAuthError
 from app.research.cleaner import clean_results
 
 async def run_research(user_query: str, project_context: dict, provider: LLMProvider) -> str:
@@ -13,6 +13,8 @@ async def run_research(user_query: str, project_context: dict, provider: LLMProv
             for r in results:
                 r["query"] = q
             return results
+        except SearchProviderAuthError:
+            raise
         except Exception:
             return []
             
@@ -22,6 +24,8 @@ async def run_research(user_query: str, project_context: dict, provider: LLMProv
     all_results = []
     success_count = 0
     for res in search_results:
+        if isinstance(res, SearchProviderAuthError):
+            raise res
         if isinstance(res, list) and res:
             all_results.extend(res)
             success_count += 1
