@@ -1,35 +1,43 @@
+"""
+New 2-call reasoning engine for StackDecide.
+
+Call 1 — extract_decisions_and_plan_queries():
+    Identifies distinct decisions from the user prompt, checks for domain mismatches,
+    and generates exactly 2 search queries per non-mismatched decision.
+
+Call 2 — score_and_decide():
+    Receives research findings for every decision and produces scored results in a
+    single LLM call (not one per decision).
+
+Call 3 — generate_annotated_prompt():
+    Pure string templating — appends a "Consider this" block to the original prompt.
+    Zero LLM calls; no rate-limit exposure.
+"""
+
 import asyncio
 import json
 import logging
-import time
 from app.providers.base import LLMProvider
-from app.models.schemas import DecisionBrief
-from app.memory.context_builder import build_memory_context
+from app.models.schemas import (
+    DecisionBrief,
+    DecisionResult,
+    ExtractionResult,
+    OptionScore,
+)
 
 logger = logging.getLogger(__name__)
 
-ANGLE_NAMES = [
-    "performance_scalability",
-    "maintainability_dev_effort",
-    "cost_free_tier_feasibility",
-    "project_fit",
-]
 
-ANGLE_DESCRIPTIONS = {
-    "performance_scalability": "Performance and Scalability: Does the recommendation hold up if the project grows? Are there performance characteristics the draft ignored?",
-    "maintainability_dev_effort": "Maintainability and Developer Effort: How much ongoing complexity/maintenance burden does this choice introduce, especially for a solo developer?",
-    "cost_free_tier_feasibility": "Cost and Free-Tier Feasibility: Does this choice work within free-tier/low-budget constraints, or does it quietly assume paid infrastructure?",
-    "project_fit": "Project Fit: Does this actually fit the specific project context (existing stack, stated constraints), or is it a generic 'best practice' answer that ignores what's already there?",
-}
-
+# ---------------------------------------------------------------------------
+# Utility
+# ---------------------------------------------------------------------------
 
 def _parse_json_from_llm(text: str) -> dict:
-    """Defensively parse JSON from LLM output, stripping markdown fences."""
+    """Defensively strip markdown fences and parse JSON from LLM output."""
     cleaned = text.strip()
-    # Strip markdown code fences
     if cleaned.startswith("```json"):
         cleaned = cleaned[7:]
-    if cleaned.startswith("```"):
+    elif cleaned.startswith("```"):
         cleaned = cleaned[3:]
     if cleaned.endswith("```"):
         cleaned = cleaned[:-3]
@@ -37,205 +45,293 @@ def _parse_json_from_llm(text: str) -> dict:
     return json.loads(cleaned)
 
 
-async def _stage1_initial_draft(
-    user_query: str,
+# ---------------------------------------------------------------------------
+# Call 1 — Decision Extraction + Query Planning
+# ---------------------------------------------------------------------------
+
+async def extract_decisions_and_plan_queries(
+    user_prompt: str,
     project_context: dict,
-    research_findings: str,
     memory_context: str,
     provider: LLMProvider,
-) -> str:
-    """Stage 1: Generate initial recommendation draft."""
-    prompt = f"""You are a senior software architect helping a developer make a technology decision.
+) -> ExtractionResult:
+    """
+    Single LLM call that:
+    1. Identifies every distinct technical decision in the user prompt.
+    2. Performs context-mismatch detection up front.
+    3. Generates exactly 2 search queries per non-mismatched decision.
+    """
+    context_summary = json.dumps(project_context, indent=2)
+    sibling_info = ""
+    if project_context.get("sibling_projects_detected"):
+        sibling_info = f"\nDetected sibling projects: {project_context['sibling_projects_detected']}"
 
-USER QUERY: {user_query}
+    prompt = f"""You are a senior software architect analyzing a developer's request.
 
-PROJECT CONTEXT:
-{json.dumps(project_context, indent=2)}
+USER PROMPT:
+{user_prompt}
 
-RESEARCH FINDINGS (real-time web research):
-{research_findings}
+AUTO-DETECTED PROJECT CONTEXT:
+{context_summary}{sibling_info}
 
-PAST DECISIONS HISTORY:
-{memory_context}
-(Note: You MUST stay consistent with these past decisions unless there's a strong reason to deviate. If you do deviate, you MUST explicitly say so and justify it.)
+PAST DECISIONS IN THIS PROJECT:
+{memory_context if memory_context else "(none yet)"}
 
-CRITICAL DOMAIN MISMATCH CHECK:
-Before producing a recommendation, evaluate if the user's query domain is actually compatible with the detected project context (e.g., asking about JS frontend libraries in a pure Python backend project).
-If there is a clear domain mismatch:
-- DO NOT invent a nonsensical or fake "equivalent" recommendation.
-- INSTEAD, explicitly flag the mismatch. If `sibling_projects_detected` is in the context, explicitly cross-reference it (e.g., "This looks like a frontend question, but the current context is backend. I found a sibling frontend/ folder, consider running this against that workspace path").
+Your task has three parts:
 
-Based on the above research findings and project context, provide your initial recommendation.
-Cover:
-1. What options are being considered
-2. Your preliminary recommendation
-3. Key reasoning points
-4. Notable tradeoffs
+PART A — IDENTIFY DECISIONS
+List every distinct technical decision implied by the user prompt. A direct question like "Zustand or Redux?" is one decision: ["state management"]. A larger spec might yield multiple: ["authentication method", "real-time sync mechanism", "database choice"].
 
-Write your response as a clear, detailed analysis. This is a first draft that will be critiqued from multiple angles before finalizing."""
+PART B — CONTEXT MISMATCH CHECK
+For each identified decision, check whether its domain is compatible with the detected project context.
+- If the project is a pure Python backend (FastAPI, Flask, etc.) and the decision is about JavaScript frontend libraries (React state management, CSS frameworks, etc.), that is a mismatch — flag it, cross-reference sibling projects if detected.
+- If no relevant sibling project was found, explicitly say the question doesn't apply to this workspace.
+- Only flag genuine mismatches. Do NOT flag decisions that could plausibly apply to any tech stack.
 
-    return await provider.generate(prompt)
+PART C — SEARCH QUERIES
+For each decision that is NOT mismatched, generate EXACTLY 2 search queries:
+- Query 1: A direct comparison query (e.g., "Zustand vs Redux 2024 comparison")
+- Query 2: A recency or ecosystem query (e.g., "Redux adoption trends developer sentiment 2024")
+Use your judgment to craft the best queries for the specific decision — these are not rigid templates.
 
+IMPORTANT: Do NOT generate queries for decisions that have a mismatch_warning.
 
-async def _stage2_critique(
-    angle_name: str,
-    angle_description: str,
-    user_query: str,
-    project_context: dict,
-    stage1_draft: str,
-    provider: LLMProvider,
-) -> dict:
-    """Run a single critique from a specific angle."""
-    prompt = f"""You are a critical reviewer analyzing a technology recommendation from a specific angle.
-
-ANGLE TO CRITIQUE FROM: {angle_description}
-
-ORIGINAL USER QUERY: {user_query}
-
-PROJECT CONTEXT:
-{json.dumps(project_context, indent=2)}
-
-PRELIMINARY RECOMMENDATION (Stage 1 draft):
-{stage1_draft}
-
-Your task: Challenge the above recommendation from the {angle_description} perspective.
-You MUST explicitly state whether you AGREE, PARTIALLY DISAGREE, or DISAGREE with the Stage 1 draft from this angle, and explain why.
-Do not just restate the draft positively — be genuinely critical where warranted.
-NOTE: If the Stage 1 draft flagged a "domain mismatch" (e.g., wrong language/framework for the project), evaluate if that mismatch is accurate. Do NOT force a technical critique of the library itself if it fundamentally doesn't belong in the project.
-
-Respond with a concise but thorough critique (3-6 sentences)."""
-
-    response = await provider.generate(prompt)
-    return {"angle": angle_name, "critique": response}
-
-
-async def _stage3_synthesis(
-    user_query: str,
-    project_context: dict,
-    stage1_draft: str,
-    critiques: list[dict],
-    unavailable_angles: list[str],
-    provider: LLMProvider,
-) -> DecisionBrief:
-    """Stage 3: Synthesize draft + critiques into final DecisionBrief."""
-    critiques_text = ""
-    for c in critiques:
-        label = ANGLE_DESCRIPTIONS.get(c["angle"], c["angle"])
-        critiques_text += f"\n### {label}\n{c['critique']}\n"
-
-    unavailable_text = ""
-    if unavailable_angles:
-        labels = [ANGLE_DESCRIPTIONS.get(a, a) for a in unavailable_angles]
-        unavailable_text = f"\nNOTE: The following critique angles could not be evaluated due to errors: {', '.join(labels)}. Acknowledge this in your angle_breakdown.\n"
-
-    prompt = f"""You are a senior software architect producing a final technology decision brief.
-
-ORIGINAL USER QUERY: {user_query}
-
-PROJECT CONTEXT:
-{json.dumps(project_context, indent=2)}
-
-PRELIMINARY RECOMMENDATION (Stage 1):
-{stage1_draft}
-
-CRITIQUES FROM MULTIPLE ANGLES (Stage 2):
-{critiques_text}
-{unavailable_text}
-
-Synthesize the preliminary recommendation with all critiques into a final decision brief.
-Where critiques raised disagreements, explicitly resolve them (e.g., "the performance critique raised X concern; this is addressed/outweighed by Y").
-CRITICAL: If Stage 1 or the critiques flagged a context/domain mismatch (e.g., asking about a JS library in a Python backend), you MUST populate the `context_mismatch_warning` field explaining the mismatch and referencing any `sibling_projects_detected`. If there is a mismatch, do NOT force a hallucinated recommendation.
-
-Return ONLY a valid JSON object (no markdown fences, no extra text) with exactly this structure:
+Return ONLY a valid JSON object with this exact structure (no markdown fences):
 {{
-  "options_considered": ["option1", "option2", ...],
-  "final_recommendation": "The recommended choice and a brief justification (or a statement explaining the mismatch if applicable)",
-  "reasoning_summary": "2-3 sentence summary of the overall reasoning",
-  "context_mismatch_warning": "Clear explanation of the domain mismatch including sibling references, OR null if no mismatch",
-  "angle_breakdown": {{
-    "performance_scalability": "Brief note on this angle's assessment",
-    "maintainability_dev_effort": "Brief note on this angle's assessment",
-    "cost_free_tier_feasibility": "Brief note on this angle's assessment",
-    "project_fit": "Brief note on this angle's assessment"
+  "decisions": ["decision topic 1", "decision topic 2"],
+  "queries": {{
+    "decision topic 1": ["query one", "query two"],
+    "decision topic 2": ["query one", "query two"]
   }},
-  "tradeoffs": ["tradeoff 1", "tradeoff 2", ...]
-}}"""
+  "mismatch_warnings": {{
+    "decision topic X": "Explanation of mismatch, referencing sibling projects if applicable"
+  }}
+}}
+
+The mismatch_warnings object should ONLY contain keys for decisions that actually have a mismatch. Omit keys for decisions with no mismatch. If no mismatches, use an empty object {{}}.
+Do NOT include mismatched decisions in the queries object."""
 
     response = await provider.generate(prompt)
 
     try:
         data = _parse_json_from_llm(response)
-        return DecisionBrief(**data)
+        return ExtractionResult(**data)
     except Exception as e:
-        logger.warning(f"Stage 3 JSON parsing failed: {e}. Attempting recovery.")
-        # Fallback: try to build a DecisionBrief from what we have
-        raise ValueError(f"Failed to parse final decision brief from LLM: {e}")
-
-
-async def analyze_decision(
-    user_query: str,
-    project_context: dict,
-    research_findings: str,
-    provider: LLMProvider,
-) -> DecisionBrief:
-    """Full 3-stage reasoning pipeline: draft -> critique -> synthesis."""
-
-    # Stage 0: Build Memory Context
-    logger.info("Stage 0: Building memory context...")
-    workspace_path = project_context.get("workspace_path", "")
-    memory_context = build_memory_context(workspace_path, user_query)
-    
-    # Stage 1: Initial draft (sequential, required)
-    logger.info("Stage 1: Generating initial draft...")
-    stage1_start = time.time()
-    stage1_draft = await _stage1_initial_draft(
-        user_query, project_context, research_findings, memory_context, provider
-    )
-    logger.info(f"Stage 1 completed in {time.time() - stage1_start:.2f}s")
-
-    # Stage 2: Four-angle critique (concurrent, partial failure OK)
-    logger.info("Stage 2: Running four-angle critique concurrently...")
-    stage2_start = time.time()
-
-    async def run_critique(angle_name: str):
-        return await _stage2_critique(
-            angle_name,
-            ANGLE_DESCRIPTIONS[angle_name],
-            user_query,
-            project_context,
-            stage1_draft,
-            provider,
+        logger.warning(f"Call 1 JSON parsing failed: {e}. Raw: {response[:300]}")
+        # Minimal fallback: treat whole prompt as one generic decision
+        return ExtractionResult(
+            decisions=["technology choice"],
+            queries={"technology choice": [
+                f"{user_prompt} comparison",
+                f"{user_prompt} best practices 2024"
+            ]},
+            mismatch_warnings={}
         )
 
-    critique_tasks = [run_critique(name) for name in ANGLE_NAMES]
-    critique_results = await asyncio.gather(*critique_tasks, return_exceptions=True)
 
-    successful_critiques = []
-    unavailable_angles = []
-    for i, result in enumerate(critique_results):
-        if isinstance(result, Exception):
-            logger.warning(f"Critique angle '{ANGLE_NAMES[i]}' failed: {result}")
-            unavailable_angles.append(ANGLE_NAMES[i])
+# ---------------------------------------------------------------------------
+# Call 2 — Scoring + Decision (batched for large sets)
+# ---------------------------------------------------------------------------
+
+# Each decision's Tavily "advanced" research text can reach ~3-4k tokens.
+# Groq free-tier has a 12k TPM limit.  With system prompt (~1.5k tokens) +
+# scoring instructions (~1k) + output headroom, that leaves ~8-9k for
+# research text.  At batch size 2 with truncation to 1500 chars per
+# decision: ~2×1500/4 ≈ 750 tokens of research + 2.5k overhead = ~3.3k per
+# batch, comfortably within limits.  Size 3 exceeded 13k in real tests.
+MAX_DECISIONS_PER_SCORING_CALL = 2
+MAX_RESEARCH_CHARS_PER_DECISION = 1500  # truncate to keep batch within TPM
+
+
+async def _score_batch(
+    batch: list[str],
+    user_prompt: str,
+    project_context: dict,
+    research_by_decision: dict[str, str],
+    provider: LLMProvider,
+) -> list[DecisionResult]:
+    """Score a single batch of decisions in one LLM call."""
+    research_sections = ""
+    for dec in batch:
+        research_text = research_by_decision.get(dec, "(no research available)")
+        # Truncate to keep within token limits
+        if len(research_text) > MAX_RESEARCH_CHARS_PER_DECISION:
+            research_text = research_text[:MAX_RESEARCH_CHARS_PER_DECISION] + "\n... (truncated)"
+        research_sections += f"\n### Decision: {dec}\n{research_text}\n"
+
+    prompt = f"""You are a senior software architect producing scored technology decisions.
+
+USER PROMPT:
+{user_prompt}
+
+PROJECT CONTEXT:
+{json.dumps(project_context, indent=2)}
+
+RESEARCH FINDINGS (by decision topic):
+{research_sections}
+
+For EACH decision topic listed below, produce a structured scoring of the realistic options.
+
+DECISIONS TO SCORE:
+{json.dumps(batch, indent=2)}
+
+For each decision:
+1. Identify the realistic options being compared (derive from the user prompt and research).
+2. Score each option 0-10 on EXACTLY these 4 dimensions:
+   - performance: raw speed, throughput, resource efficiency
+   - maintainability: code complexity, documentation quality, ecosystem maturity
+   - cost: free tier availability, pricing at scale, hidden costs
+   - project_fit: how well it integrates with the detected project stack and constraints
+3. Compute total_score as the SUM of the 4 dimension scores (scale: 0-40).
+4. Write one concise why_chosen_over_others string (1-2 sentences) per option — focus on WHY this option compares favorably or unfavorably against the others specifically, not generic description.
+5. Set final_pick to the option with the highest total_score (ties broken by project_fit).
+
+Return ONLY a valid JSON array (no markdown fences):
+[
+  {{
+    "decision_topic": "exact topic string from DECISIONS TO SCORE",
+    "options_considered": ["Option A", "Option B"],
+    "scores": [
+      {{
+        "option_name": "Option A",
+        "performance": 8,
+        "maintainability": 7,
+        "cost": 9,
+        "project_fit": 8,
+        "total_score": 32,
+        "why_chosen_over_others": "..."
+      }},
+      {{
+        "option_name": "Option B",
+        "performance": 6,
+        "maintainability": 8,
+        "cost": 7,
+        "project_fit": 6,
+        "total_score": 27,
+        "why_chosen_over_others": "..."
+      }}
+    ],
+    "final_pick": "Option A",
+    "mismatch_warning": null
+  }}
+]"""
+
+    response = await provider.generate(prompt)
+    raw_results = _parse_json_from_llm(response)
+    if not isinstance(raw_results, list):
+        raise ValueError("Expected a JSON array from Call 2 batch")
+
+    results = []
+    for item in raw_results:
+        scores = [OptionScore(**s) for s in item.get("scores", [])]
+        results.append(DecisionResult(
+            decision_topic=item["decision_topic"],
+            options_considered=item.get("options_considered", []),
+            scores=scores,
+            final_pick=item.get("final_pick"),
+            mismatch_warning=None,
+        ))
+    return results
+
+
+async def score_and_decide(
+    user_prompt: str,
+    project_context: dict,
+    decisions: list[str],
+    research_by_decision: dict[str, str],
+    mismatch_warnings: dict[str, str],
+    provider: LLMProvider,
+) -> list[DecisionResult]:
+    """
+    Score all non-mismatched decisions.  When decision count exceeds
+    MAX_DECISIONS_PER_SCORING_CALL, splits into concurrent batches so no
+    single call is too large for free-tier token limits.
+    """
+    scoreable = [d for d in decisions if d not in mismatch_warnings]
+    results: list[DecisionResult] = []
+
+    if scoreable:
+        # Split into batches
+        batches = [
+            scoreable[i : i + MAX_DECISIONS_PER_SCORING_CALL]
+            for i in range(0, len(scoreable), MAX_DECISIONS_PER_SCORING_CALL)
+        ]
+        logger.info(
+            f"Call 2: scoring {len(scoreable)} decisions in {len(batches)} batch(es) "
+            f"(sizes: {[len(b) for b in batches]})"
+        )
+
+        # Run all batches concurrently
+        batch_tasks = [
+            _score_batch(batch, user_prompt, project_context, research_by_decision, provider)
+            for batch in batches
+        ]
+        batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+
+        for i, res in enumerate(batch_results):
+            if isinstance(res, Exception):
+                logger.warning(f"Call 2 batch {i+1}/{len(batches)} failed: {res}")
+                # Don't silently drop — produce explicit failure stubs
+                for dec in batches[i]:
+                    results.append(DecisionResult(
+                        decision_topic=dec,
+                        options_considered=[],
+                        scores=[],
+                        final_pick=None,
+                        mismatch_warning=f"Scoring could not be completed (batch {i+1} failed: {res}). Please retry this decision.",
+                    ))
+            else:
+                results.extend(res)
+
+    # Append mismatched decisions with no scoring
+    for dec, warning in mismatch_warnings.items():
+        results.append(DecisionResult(
+            decision_topic=dec,
+            options_considered=[],
+            scores=[],
+            final_pick=None,
+            mismatch_warning=warning,
+        ))
+
+    # Return in original decision order
+    order = {d: i for i, d in enumerate(decisions)}
+    results.sort(key=lambda r: order.get(r.decision_topic, 999))
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Call 3 — Annotated Prompt (pure templating, zero LLM calls)
+# ---------------------------------------------------------------------------
+
+def generate_annotated_prompt(original_prompt: str, results: list[DecisionResult]) -> str:
+    """
+    Appends a 'Consider this when implementing' block to the original prompt,
+    or returns a clarification message if all decisions were context mismatches.
+    """
+    if results and all(r.mismatch_warning for r in results):
+        lines = [
+            f'I asked: "{original_prompt}"',
+            "",
+            "StackDecide couldn't produce an actionable recommendation — every part of this request appears to be a context mismatch:"
+        ]
+        for r in results:
+            lines.append(f"- {r.decision_topic}: {r.mismatch_warning}")
+        lines.extend([
+            "",
+            "Before implementing anything, please clarify or point StackDecide at the right part of your project."
+        ])
+        return "\n".join(lines)
+
+    lines = [original_prompt, "", "---", "Consider this when implementing:"]
+    for r in results:
+        if r.mismatch_warning:
+            lines.append(
+                f"- {r.decision_topic}: flagged as not applicable — {r.mismatch_warning}"
+            )
         else:
-            successful_critiques.append(result)
-
-    stage2_elapsed = time.time() - stage2_start
-    logger.info(
-        f"Stage 2 completed in {stage2_elapsed:.2f}s "
-        f"({len(successful_critiques)}/4 critiques succeeded)"
-    )
-
-    # Stage 3: Synthesis (sequential, requires Stage 1 + Stage 2)
-    logger.info("Stage 3: Synthesizing final decision brief...")
-    stage3_start = time.time()
-    brief = await _stage3_synthesis(
-        user_query,
-        project_context,
-        stage1_draft,
-        successful_critiques,
-        unavailable_angles,
-        provider,
-    )
-    logger.info(f"Stage 3 completed in {time.time() - stage3_start:.2f}s")
-
-    return brief
+            best = next((s for s in r.scores if s.option_name == r.final_pick), None)
+            why = best.why_chosen_over_others if best else ""
+            # Trim why to ~100 chars for compactness
+            why_short = (why[:97] + "...") if len(why) > 100 else why
+            lines.append(f"- {r.decision_topic}: {r.final_pick} ({why_short})")
+    return "\n".join(lines)
