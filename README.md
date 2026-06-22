@@ -38,52 +38,52 @@ StackDecide sits between you and your coding agent. Before you ask Codex/Antigra
 ## Architecture
 
 ```
-┌────────────────────────────────────────────────────────┐
-│  VS Code Extension (TypeScript)                         │
-│  ┌──────────────────┐        ┌──────────────────────┐   │
-│  │  Analysis View    │        │  Settings View         │   │
-│  │  - query input    │        │  - LLM provider (BYOK) │   │
-│  │  - score tables   │        │  - LLM API key          │   │
-│  │  - mismatch banner│        │  - Tavily API key         │   │
-│  │  - copy-to-agent  │        │  (independently editable)  │   │
-│  └──────────────────┘        └──────────────────────┘   │
-└───────────────────────┬──────────────────────────────────┘
-                        │ REST (localhost)
-┌───────────────────────▼──────────────────────────────────┐
-│  FastAPI Backend (Python)                                 │
-│                                                            │
-│  0. Context Merge + Memory Load                             │
-│     auto-detected project stack + manual override            │
-│     + sibling sub-project detection + past decisions           │
-│                                                                    │
-│  CALL 1 — Extraction + Query Planning (single LLM call)              │
-│     Reads the prompt + project context + memory → identifies         │
-│     every distinct decision, flags any that don't fit the project       │
-│     context up front, generates exactly 2 search queries per             │
-│     decision that needs research                                          │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  VS Code Extension (TypeScript)                                              │
+│  ┌──────────────────────┐          ┌────────────────────────────────┐        │
+│  │  Analysis View       │          │  Settings View                 │        │
+│  │  - query input       │          │  - LLM provider (BYOK)         │        │
+│  │  - score tables      │          │  - LLM API key                 │        │
+│  │  - mismatch banner   │          │  - Tavily API key              │        │
+│  │  - copy-to-agent     │          │  (independently editable)      │        │
+│  └──────────────────────┘          └────────────────────────────────┘        │
+└───────────────────────────────┬──────────────────────────────────────────────┘
+                                │ REST (localhost)
+┌───────────────────────────────▼──────────────────────────────────────────────┐
+│  FastAPI Backend (Python)                                                    │
 │                                                                              │
-│  ── guard: >10 decisions found → requires explicit user approval ──         │
+│  0. Context Merge + Memory Load                                              │
+│     auto-detected project stack + manual override                            │
+│     + sibling sub-project detection + past decisions                         │
+│                                                                              │
+│  CALL 1 — Extraction + Query Planning (single LLM call)                      │
+│     Reads the prompt + project context + memory → identifies                 │
+│     every distinct decision, flags any that don't fit the project            │
+│     context up front, generates exactly 2 search queries per                 │
+│     decision that needs research                                             │
+│                                                                              │
+│  ── guard: >10 decisions found → requires explicit user approval ──          │
 │  ── before continuing (proceed_anyway) ──                                    │
-│                                                                                 │
-│  WEB RESEARCH (Tavily API, no LLM call)                                          │
-│     Concurrent search across all decisions' queries; mismatched                   │
-│     decisions skip research entirely                                                │
-│                                                                                          │
-│  CALL 2 — Scoring (one or a few batched LLM calls)                                        │
-│     Scores every realistic option per decision across 4 dimensions                          │
-│     (performance, maintainability, cost, project fit) → picks a winner                         │
-│     per decision. Large decision sets are split into small concurrent                            │
-│     batches to stay within free-tier token limits — most requests                                  │
-│     still complete in exactly one call.                                                              │
-│                                                                                                          │
-│  CALL 3 — Annotated Prompt (pure string templating, zero LLM calls)                                       │
-│     Appends a "Consider this when implementing" block to the                                                │
-│     *original, untouched* prompt — or, if nothing was actionable,                                              │
-│     a clarification request instead                                                                              │
-│                                                                                                                       │
-│  Memory: one record per decision topic → .stackdecide/memory.json                                                      │
-│  LLM Providers (BYOK): Gemini · Claude · GPT · Grok · Groq · OpenRouter                                                    │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                                                              │
+│  WEB RESEARCH (Tavily API, no LLM call)                                      │
+│     Concurrent search across all decisions' queries; mismatched              │
+│     decisions skip research entirely                                         │
+│                                                                              │
+│  CALL 2 — Scoring (one or a few batched LLM calls)                           │
+│     Scores every realistic option per decision across 4 dimensions           │
+│     (performance, maintainability, cost, project fit) → picks a winner       │
+│     per decision. Large decision sets are split into small concurrent        │
+│     batches to stay within free-tier token limits — most requests            │
+│     still complete in exactly one call.                                      │
+│                                                                              │
+│  CALL 3 — Annotated Prompt (pure string templating, zero LLM calls)          │
+│     Appends a "Consider this when implementing" block to the                 │
+│     *original, untouched* prompt — or, if nothing was actionable,            │
+│     a clarification request instead                                          │
+│                                                                              │
+│  Memory: one record per decision topic → .stackdecide/memory.json            │
+│  LLM Providers (BYOK): Gemini · Claude · GPT · Grok · Groq · OpenRouter      │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Why this counts as agentic, not just "a chatbot with extra steps"
