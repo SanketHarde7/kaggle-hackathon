@@ -14,9 +14,8 @@ export function getWebviewContent() {
             margin: 0;
             line-height: 1.5;
         }
-        
         h1, h2, h3, h4 { color: var(--vscode-editor-foreground); }
-        
+
         .header {
             display: flex;
             justify-content: space-between;
@@ -25,10 +24,8 @@ export function getWebviewContent() {
             padding-bottom: 12px;
             margin-bottom: 16px;
         }
-
         .header h2 { margin: 0; font-size: 1.2em; }
-        
-        /* Buttons & Inputs */
+
         button {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
@@ -40,7 +37,7 @@ export function getWebviewContent() {
         }
         button:hover { background-color: var(--vscode-button-hoverBackground); }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
-        
+
         textarea, input, select {
             width: 100%;
             background-color: var(--vscode-input-background);
@@ -52,9 +49,7 @@ export function getWebviewContent() {
             border-radius: 2px;
             font-family: var(--vscode-font-family);
         }
-        
         textarea { resize: vertical; min-height: 80px; }
-        
         label {
             display: block;
             margin-bottom: 4px;
@@ -69,17 +64,13 @@ export function getWebviewContent() {
             padding: 6px 10px;
             font-size: 1.2em;
         }
-        .icon-btn:hover {
-            background: var(--vscode-toolbar-hoverBackground);
-        }
+        .icon-btn:hover { background: var(--vscode-toolbar-hoverBackground); }
 
-        /* Views */
         #settings-view { display: none; }
-        
-        /* Spinner */
+
         .spinner {
             display: none;
-            border: 3px solid rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255,255,255,0.1);
             border-top: 3px solid var(--vscode-button-background);
             border-radius: 50%;
             width: 20px;
@@ -87,56 +78,91 @@ export function getWebviewContent() {
             animation: spin 1s linear infinite;
             margin: 0 auto 12px auto;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
 
-        /* Messages */
         .error { color: var(--vscode-errorForeground); margin-bottom: 12px; font-weight: bold; }
         .success { color: var(--vscode-testing-iconPassed); margin-bottom: 12px; font-weight: bold; }
+
         .warning-box {
             background-color: var(--vscode-inputValidation-warningBackground);
             border: 1px solid var(--vscode-inputValidation-warningBorder);
             padding: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             border-radius: 4px;
-            color: var(--vscode-editor-foreground);
         }
 
-        /* Results */
-        #results-container { display: none; margin-top: 20px; }
-        .chip {
-            display: inline-block;
-            background-color: var(--vscode-badge-background);
-            color: var(--vscode-badge-foreground);
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            margin: 0 6px 6px 0;
-        }
-        .recommendation {
-            background-color: var(--vscode-textBlockQuote-background);
-            border-left: 4px solid var(--vscode-textBlockQuote-border);
+        .approval-box {
+            background-color: var(--vscode-inputValidation-infoBackground);
+            border: 1px solid var(--vscode-inputValidation-infoBorder);
             padding: 12px;
-            margin: 16px 0;
-        }
-        details {
-            background: var(--vscode-editorWidget-background);
-            border: 1px solid var(--vscode-widget-border);
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             border-radius: 4px;
         }
-        summary {
-            padding: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            user-select: none;
-            background: var(--vscode-editorGroupHeader-tabsBackground);
-        }
-        .angle-content { padding: 12px; }
-        .tradeoffs-list {
-            padding-left: 20px;
-        }
-        .tradeoffs-list li { margin-bottom: 6px; }
 
+        #results-container { display: none; margin-top: 20px; }
+
+        /* Decision card */
+        .decision-card {
+            border: 1px solid var(--vscode-widget-border);
+            border-radius: 4px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .decision-header {
+            background: var(--vscode-editorGroupHeader-tabsBackground);
+            padding: 10px 12px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .decision-pick {
+            background: var(--vscode-badge-background);
+            color: var(--vscode-badge-foreground);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: normal;
+        }
+        .decision-body { padding: 12px; }
+
+        /* Score table */
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88em;
+            margin-bottom: 10px;
+        }
+        .score-table th {
+            text-align: left;
+            background: var(--vscode-editorWidget-background);
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        .score-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.07));
+        }
+        .score-table tr.best-row td { font-weight: 600; }
+        .score-num {
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+        .score-total { font-weight: 700; }
+        .why-text {
+            font-size: 0.85em;
+            opacity: 0.85;
+            margin-top: 2px;
+            padding: 4px 8px 8px;
+            border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.07));
+        }
+        .why-label { font-weight: 600; font-size: 0.8em; text-transform: uppercase; opacity: 0.6; }
+
+        .copy-btn-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
     </style>
 </head>
 <body>
@@ -152,7 +178,7 @@ export function getWebviewContent() {
     <!-- Analysis View -->
     <div id="analysis-view">
         <label for="query-input">Decision Query</label>
-        <textarea id="query-input" placeholder="e.g. Should I use Zustand or Redux for state management?"></textarea>
+        <textarea id="query-input" placeholder="e.g. Should I use Zustand or Redux? Or paste a full spec with multiple decisions."></textarea>
 
         <label for="manual-context-input">Additional Context (Optional)</label>
         <textarea id="manual-context-input" placeholder="e.g. Our team mostly knows React..." style="min-height: 50px;"></textarea>
@@ -160,32 +186,28 @@ export function getWebviewContent() {
         <div class="spinner" id="loading-spinner"></div>
         <button id="submit-btn" style="width: 100%;">Analyze Decision</button>
 
-        <div id="results-container">
-            <div id="options-chips"></div>
-            
-            <div id="mismatch-warning-container" style="display:none;"></div>
-
-            <div class="recommendation" style="position: relative;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <h3 style="margin-top:0;">Recommendation</h3>
-                    <button id="copy-prompt-btn" style="font-size: 0.85em; padding: 4px 8px; display: none;">Copy Codex Prompt</button>
-                </div>
-                <p id="res-recommendation"></p>
-                <p id="res-reasoning" style="opacity:0.9; font-size:0.95em;"></p>
+        <!-- Approval checkpoint (shown when >10 decisions detected) -->
+        <div id="approval-container" style="display:none; margin-top:12px;">
+            <div class="approval-box">
+                <strong>&#8505; Approval Required</strong><br>
+                StackDecide detected <span id="approval-count">N</span> distinct decisions. Do you want to analyze all of them?
+                <div id="approval-decisions" style="margin-top:8px; font-size:0.9em; opacity:0.85;"></div>
+                <button id="approval-confirm-btn" style="margin-top:10px; width:100%;">Yes, Analyze All</button>
             </div>
+        </div>
 
-            <h3 style="margin-top:24px;">Critique Angles</h3>
-            <div id="angles-container"></div>
-
-            <h3 style="margin-top:24px;">Tradeoffs</h3>
-            <ul class="tradeoffs-list" id="tradeoffs-list"></ul>
+        <div id="results-container">
+            <div id="decisions-list"></div>
+            <div class="copy-btn-row">
+                <button id="copy-annotated-btn" style="display:none; font-size:0.85em; padding:4px 10px;">Copy Annotated Prompt</button>
+            </div>
         </div>
     </div>
 
     <!-- Settings View -->
     <div id="settings-view">
         <h3>Settings</h3>
-        
+
         <label for="provider-select">LLM Provider</label>
         <select id="provider-select">
             <option value="gemini">Gemini</option>
@@ -196,16 +218,19 @@ export function getWebviewContent() {
             <option value="openrouter">OpenRouter</option>
         </select>
 
-        <label for="api-key-input">API Key</label>
-        <input type="password" id="api-key-input" placeholder="Enter API Key">
+        <label for="api-key-input">LLM API Key</label>
+        <input type="password" id="api-key-input" placeholder="Enter LLM API Key">
 
-        <button id="save-settings-btn" style="width: 100%; margin-top: 12px;">Save Settings</button>
+        <label for="tavily-api-key-input" style="margin-top:12px;">Tavily Search API Key</label>
+        <div style="font-size:0.85em; opacity:0.8; margin-bottom:4px;">Get a free key at tavily.com (no card required)</div>
+        <input type="password" id="tavily-api-key-input" placeholder="Enter Tavily API Key">
+
+        <button id="save-settings-btn" style="width:100%; margin-top:12px;">Save Settings</button>
     </div>
 
     <script>
         const vscode = acquireVsCodeApi();
 
-        // Elements
         const analysisView = document.getElementById('analysis-view');
         const settingsView = document.getElementById('settings-view');
         const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
@@ -214,21 +239,23 @@ export function getWebviewContent() {
         const spinner = document.getElementById('loading-spinner');
         const errorMsg = document.getElementById('error-msg');
         const successMsg = document.getElementById('success-msg');
-        
         const queryInput = document.getElementById('query-input');
         const manualContextInput = document.getElementById('manual-context-input');
-        
         const providerSelect = document.getElementById('provider-select');
         const apiKeyInput = document.getElementById('api-key-input');
-
+        const tavilyApiKeyInput = document.getElementById('tavily-api-key-input');
         const resultsContainer = document.getElementById('results-container');
-        const copyPromptBtn = document.getElementById('copy-prompt-btn');
+        const copyAnnotatedBtn = document.getElementById('copy-annotated-btn');
+        const approvalContainer = document.getElementById('approval-container');
+        const approvalCount = document.getElementById('approval-count');
+        const approvalDecisions = document.getElementById('approval-decisions');
+        const approvalConfirmBtn = document.getElementById('approval-confirm-btn');
 
         let isSettingsOpen = false;
-        let currentBrief = null;
-        let currentQuery = '';
+        let currentAnnotatedPrompt = '';
+        let pendingApprovalQuery = '';
+        let pendingApprovalContext = '';
 
-        // Toggle Views
         toggleSettingsBtn.addEventListener('click', () => {
             isSettingsOpen = !isSettingsOpen;
             if (isSettingsOpen) {
@@ -243,7 +270,6 @@ export function getWebviewContent() {
             }
         });
 
-        // Messages from Extension
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
@@ -251,22 +277,27 @@ export function getWebviewContent() {
                     showResults(message.brief);
                     stopLoading();
                     break;
+                case 'approvalRequired':
+                    stopLoading();
+                    showApproval(message.decision_count, message.decisions);
+                    break;
                 case 'analysisError':
                     showError(message.error);
                     stopLoading();
                     break;
                 case 'settingsLoaded':
-                    if (message.provider) {
-                        providerSelect.value = message.provider;
-                    }
-                    if (message.configured) {
-                        apiKeyInput.placeholder = '•••••••• (Key Configured)';
-                    }
+                    if (message.provider) providerSelect.value = message.provider;
+                    if (message.configured) apiKeyInput.placeholder = '•••••••• (Key Configured)';
+                    if (message.tavilyConfigured) tavilyApiKeyInput.placeholder = '•••••••• (Key Configured)';
                     break;
                 case 'settingsSaved':
                     showSuccess('Settings saved successfully!');
                     apiKeyInput.value = '';
                     apiKeyInput.placeholder = '•••••••• (Key Configured)';
+                    if (tavilyApiKeyInput.value) {
+                        tavilyApiKeyInput.value = '';
+                        tavilyApiKeyInput.placeholder = '•••••••• (Key Configured)';
+                    }
                     break;
                 case 'settingsError':
                     showError(message.error);
@@ -274,33 +305,47 @@ export function getWebviewContent() {
             }
         });
 
-        // Submit Query
         submitBtn.addEventListener('click', () => {
             const query = queryInput.value.trim();
             const manualContext = manualContextInput.value.trim();
-            if (!query) {
-                showError("Please enter a decision query.");
-                return;
-            }
-            currentQuery = query;
+            if (!query) { showError("Please enter a decision query."); return; }
+            pendingApprovalQuery = query;
+            pendingApprovalContext = manualContext;
+            approvalContainer.style.display = 'none';
+            startLoading();
+            vscode.postMessage({ command: 'analyze', query, manualContext });
+        });
+
+        approvalConfirmBtn.addEventListener('click', () => {
+            approvalContainer.style.display = 'none';
             startLoading();
             vscode.postMessage({
                 command: 'analyze',
-                query: query,
-                manualContext: manualContext
+                query: pendingApprovalQuery,
+                manualContext: pendingApprovalContext,
+                proceed_anyway: true
             });
         });
 
-        // Save Settings
         saveSettingsBtn.addEventListener('click', () => {
             const provider = providerSelect.value;
             const apiKey = apiKeyInput.value.trim();
+            const tavilyApiKey = tavilyApiKeyInput.value.trim();
             clearMessages();
             vscode.postMessage({
                 command: 'saveSettings',
                 provider: provider,
-                apiKey: apiKey
+                apiKey: apiKey || undefined,
+                tavilyApiKey: tavilyApiKey || undefined
             });
+        });
+
+        copyAnnotatedBtn.addEventListener('click', () => {
+            if (!currentAnnotatedPrompt) return;
+            vscode.postMessage({ command: 'copyToClipboard', text: currentAnnotatedPrompt });
+            const orig = copyAnnotatedBtn.innerText;
+            copyAnnotatedBtn.innerText = 'Copied!';
+            setTimeout(() => { copyAnnotatedBtn.innerText = orig; }, 2000);
         });
 
         function startLoading() {
@@ -309,129 +354,99 @@ export function getWebviewContent() {
             resultsContainer.style.display = 'none';
             clearMessages();
         }
-
         function stopLoading() {
             submitBtn.disabled = false;
             spinner.style.display = 'none';
         }
-
         function clearMessages() {
             errorMsg.innerText = '';
             successMsg.innerText = '';
         }
-
         function showError(msg) {
             errorMsg.innerText = msg;
             successMsg.innerText = '';
         }
-
         function showSuccess(msg) {
             successMsg.innerText = msg;
             errorMsg.innerText = '';
         }
 
-        // Render Results
+        function showApproval(count, decisions) {
+            approvalCount.innerText = count;
+            approvalDecisions.innerHTML = decisions.map((d, i) => \`<div>\${i+1}. \${d}</div>\`).join('');
+            approvalContainer.style.display = 'block';
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
         function showResults(brief) {
-            currentBrief = brief;
             resultsContainer.style.display = 'block';
-            copyPromptBtn.style.display = 'block';
+            currentAnnotatedPrompt = brief.annotated_prompt || '';
+            copyAnnotatedBtn.style.display = currentAnnotatedPrompt ? 'inline-block' : 'none';
 
-            // Options
-            const chipsHtml = (brief.options_considered || []).map(opt => \`<span class="chip">\${opt}</span>\`).join('');
-            document.getElementById('options-chips').innerHTML = chipsHtml;
+            const list = document.getElementById('decisions-list');
+            list.innerHTML = '';
 
-            // Warning
-            const warningContainer = document.getElementById('mismatch-warning-container');
-            if (brief.context_mismatch_warning) {
-                warningContainer.style.display = 'block';
-                warningContainer.innerHTML = \`<div class="warning-box"><strong>&#9888; Context Mismatch:</strong><br>\${brief.context_mismatch_warning}</div>\`;
-                copyPromptBtn.innerText = 'Copy Clarification Prompt';
-            } else {
-                warningContainer.style.display = 'none';
-                copyPromptBtn.innerText = 'Copy Codex Prompt';
-            }
+            for (const res of (brief.results || [])) {
+                const card = document.createElement('div');
+                card.className = 'decision-card';
 
-            // Recommendation
-            document.getElementById('res-recommendation').innerText = brief.final_recommendation || '';
-            document.getElementById('res-reasoning').innerText = brief.reasoning_summary || '';
+                const topic = escapeHtml(res.decision_topic || 'Decision');
+                if (res.mismatch_warning) {
+                    card.innerHTML = \`
+                        <div class="decision-header">\${topic}</div>
+                        <div class="decision-body">
+                            <div class="warning-box"><strong>&#9888; Context Mismatch:</strong><br>\${escapeHtml(res.mismatch_warning)}</div>
+                        </div>\`;
+                } else {
+                    const pick = escapeHtml(res.final_pick || '—');
+                    let tableRows = '';
+                    for (const sc of (res.scores || [])) {
+                        const isBest = sc.option_name === res.final_pick;
+                        tableRows += \`
+                            <tr class="\${isBest ? 'best-row' : ''}">
+                                <td>\${escapeHtml(sc.option_name)}\${isBest ? ' &#9733;' : ''}</td>
+                                <td class="score-num">\${sc.performance}</td>
+                                <td class="score-num">\${sc.maintainability}</td>
+                                <td class="score-num">\${sc.cost}</td>
+                                <td class="score-num">\${sc.project_fit}</td>
+                                <td class="score-num score-total">\${sc.total_score}</td>
+                            </tr>
+                            <tr><td colspan="6" class="why-text">
+                                <span class="why-label">vs others: </span>\${escapeHtml(sc.why_chosen_over_others)}
+                            </td></tr>\`;
+                    }
 
-            // Angles
-            const anglesContainer = document.getElementById('angles-container');
-            anglesContainer.innerHTML = '';
-            if (brief.angle_breakdown) {
-                for (const [angle, text] of Object.entries(brief.angle_breakdown)) {
-                    // Format angle title
-                    const title = angle.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());
-                    anglesContainer.innerHTML += \`
-                        <details>
-                            <summary>\${title}</summary>
-                            <div class="angle-content">\${text}</div>
-                        </details>
-                    \`;
+                    card.innerHTML = \`
+                        <div class="decision-header">
+                            \${topic}
+                            <span class="decision-pick">&#10003; \${pick}</span>
+                        </div>
+                        <div class="decision-body">
+                            <table class="score-table">
+                                <thead><tr>
+                                    <th>Option</th>
+                                    <th class="score-num">Perf</th>
+                                    <th class="score-num">Maint</th>
+                                    <th class="score-num">Cost</th>
+                                    <th class="score-num">Fit</th>
+                                    <th class="score-num">Total</th>
+                                </tr></thead>
+                                <tbody>\${tableRows}</tbody>
+                            </table>
+                        </div>\`;
                 }
+                list.appendChild(card);
             }
-
-            // Tradeoffs
-            const tradeoffsList = document.getElementById('tradeoffs-list');
-            tradeoffsList.innerHTML = (brief.tradeoffs || []).map(t => \`<li>\${t}</li>\`).join('');
         }
 
-        copyPromptBtn.addEventListener('click', () => {
-            if (!currentBrief) return;
-            const promptText = generateCodexPrompt(currentBrief, currentQuery);
-            vscode.postMessage({ command: 'copyToClipboard', text: promptText });
-            
-            const origText = copyPromptBtn.innerText;
-            copyPromptBtn.innerText = 'Copied!';
-            setTimeout(() => {
-                copyPromptBtn.innerText = origText;
-            }, 2000);
-        });
-
-        function generateCodexPrompt(brief, originalQuery) {
-            const lines = [];
-            
-            if (brief.context_mismatch_warning) {
-                lines.push('I asked: "' + originalQuery + '"');
-                lines.push("");
-                lines.push("StackDecide flagged a context mismatch before producing a recommendation:");
-                lines.push(brief.context_mismatch_warning);
-                lines.push("");
-                lines.push("This means the analysis above may not be directly actionable as a coding task yet. Before implementing anything, please clarify: is there a specific part of the project I should point StackDecide at instead?");
-                return lines.join('\\n');
-            }
-            
-            lines.push("I need you to implement a technical decision for my project.");
-            lines.push("");
-            
-            lines.push("ORIGINAL QUESTION / DECISION:");
-            lines.push(originalQuery);
-            lines.push("");
-            
-            lines.push("FINAL RECOMMENDATION:");
-            lines.push(brief.final_recommendation);
-            lines.push("");
-            
-            lines.push("KEY REASONING:");
-            lines.push(brief.reasoning_summary);
-            lines.push("");
-            
-            if (brief.tradeoffs && brief.tradeoffs.length > 0) {
-                lines.push("IMPORTANT TRADEOFFS:");
-                brief.tradeoffs.slice(0, 2).forEach(t => {
-                    lines.push("- " + t);
-                });
-                lines.push("");
-            }
-            
-            lines.push("Please implement this using the above decision as the foundation. Follow clean, maintainable patterns and avoid introducing dependencies not justified by this decision.");
-            
-            return lines.join('\\n');
-        }
-
-        // On Load: request settings
         vscode.postMessage({ command: 'getSettings' });
-
     </script>
 </body>
 </html>`;
