@@ -92,21 +92,7 @@ StackDecide sits between you and your coding agent. Before you ask Codex/Antigra
 - **Tool use**: live web search (Tavily) and filesystem inspection are invoked as tools the agent uses to ground its reasoning in current, real information rather than relying solely on the LLM's internal knowledge.
 - **Self-aware scope management**: the >10-decision approval guard and the per-batch token budgeting are the system reasoning about its own limits and adapting its own execution plan, not just running a fixed script.
 - **Calibrated honesty**: when the project context doesn't match the question — for one decision, or for all of them — the system says so explicitly instead of producing a fluent but meaningless answer. This was deliberately built and tested as a first-class behavior, not an afterthought.
-
----
-
-## Screenshots
-
-**Score table (matched decision):**
-*Screenshot here — score table showing options ranked across performance/maintainability/cost/fit*
-
-**Context mismatch (decision doesn't fit the project):**
-*Screenshot here — mismatch warning banner*
-
-**Settings panel (BYOK):**
-*Screenshot here — provider dropdown + masked API key fields*
-
----
+~
 
 ## Tech Stack
 
