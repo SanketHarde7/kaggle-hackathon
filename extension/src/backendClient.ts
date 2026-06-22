@@ -22,12 +22,13 @@ export class BackendClient {
         });
     }
 
-    public async analyze(query: string, workspacePath: string, manualContext?: string): Promise<any> {
+    public async analyze(query: string, workspacePath: string, manualContext?: string, proceedAnyway?: boolean): Promise<any> {
         return new Promise((resolve, reject) => {
             const data = JSON.stringify({
                 query,
                 workspace_path: workspacePath,
-                manual_context: manualContext
+                manual_context: manualContext,
+                proceed_anyway: proceedAnyway || false,
             });
 
             const options = {
@@ -50,12 +51,16 @@ export class BackendClient {
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
                         try {
                             const json = JSON.parse(responseData);
-                            resolve(json.brief);
+                            // If it's an approval-required response, return it as-is
+                            if (json.requires_approval) {
+                                resolve(json);
+                            } else {
+                                resolve(json.brief);
+                            }
                         } catch (e) {
                             reject(new Error('Failed to parse backend response'));
                         }
                     } else {
-                        // Extract detailed error if possible
                         let errorMessage = `Backend returned status code ${res.statusCode}`;
                         try {
                             const errJson = JSON.parse(responseData);
@@ -78,9 +83,14 @@ export class BackendClient {
         });
     }
 
-    public async saveSettings(provider: string, apiKey: string): Promise<boolean> {
+
+    public async saveSettings(provider?: string, apiKey?: string, tavilyApiKey?: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
-            const data = JSON.stringify({ provider, api_key: apiKey });
+            const payload: any = {};
+            if (provider) payload.provider = provider;
+            if (apiKey) payload.api_key = apiKey;
+            if (tavilyApiKey) payload.tavily_api_key = tavilyApiKey;
+            const data = JSON.stringify(payload);
             const options = {
                 hostname: 'localhost',
                 port: 8000,
@@ -115,7 +125,7 @@ export class BackendClient {
         });
     }
 
-    public async getSettings(): Promise<{provider: string | null, configured: boolean}> {
+    public async getSettings(): Promise<{provider: string | null, configured: boolean, tavily_configured?: boolean}> {
         return new Promise((resolve, reject) => {
             const options = {
                 hostname: 'localhost',
