@@ -116,7 +116,7 @@ StackDecide sits between you and your coding agent. Before you ask Codex/Antigra
 ## Setup
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.10+
 - Node.js + npm
 - VS Code
 - A free [Tavily](https://tavily.com) API key (1,000 free requests/month, no card required)
