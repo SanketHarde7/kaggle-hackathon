@@ -1,3 +1,7 @@
+
+**setup**
+https://github.com/user-attachments/assets/2540540f-357f-4d5c-b456-70fc438149f3
+
 # StackDecide
 
 **Should you use Zustand or Redux? SQLite or Postgres? REST or WebSockets? StackDecide researches it, scores the options, and tells you — with real-time information, not stale training data — before you ask your AI coding agent to just pick one for you.**
