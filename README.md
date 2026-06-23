@@ -184,22 +184,33 @@ Open the `extension/` folder in VS Code and press `F5` to launch an Extension De
 
 ```
 stackdecide/
-├── extension/              # VS Code extension (TypeScript)
-│   └── src/
-│       ├── extension.ts    # command registration, activation
-│       ├── panel.ts        # webview lifecycle, message bridge
-│       └── ui.ts           # webview HTML/CSS/JS (Analysis + Settings views)
-├── backend/                 # FastAPI backend (Python)
-│   └── app/
-│       ├── main.py
-│       ├── config.py        # settings, BYOK runtime/env precedence
-│       ├── routes/          # /analyze, /settings, /health
-│       ├── providers/       # Gemini, Claude, GPT, Grok, Groq, OpenRouter
-│       ├── research/        # query planning, Tavily search, cleaning, orchestration
-│       ├── reasoning/        # extraction, scoring, annotated-prompt generation
-│       ├── memory/            # per-project decision history + context builder
-│       └── context/            # auto project-context scanner
-└── README.md
+├── extension/                     # VS Code Extension Root
+│   ├── backend/                   # Python AI Backend Service
+│   │   ├── app/                   # Backend Application Code
+│   │   │   ├── context/           # Context management
+│   │   │   ├── memory/            # Memory/State management
+│   │   │   ├── models/            # Data models and schemas
+│   │   │   ├── providers/         # External API providers (LLM, etc.)
+│   │   │   ├── reasoning/         # Reasoning and logic engine
+│   │   │   ├── research/          # Research and search tools
+│   │   │   ├── routes/            # API endpoints
+│   │   │   ├── config.py          # Configuration settings
+│   │   │   └── main.py            # Backend entry point
+│   │   ├── requirements.txt       # Python dependencies
+│   │   └── .env                   # Environment variables
+│   │
+│   ├── src/                       # Extension TypeScript Source Code
+│   │   ├── backendClient.ts       # Client to communicate with Python backend
+│   │   ├── backendManager.ts      # Manages backend process lifecycle
+│   │   ├── extension.ts           # Extension entry point
+│   │   ├── panel.ts               # Webview panel implementation
+│   │   ├── sidebarProvider.ts     # Sidebar UI provider
+│   │   └── ui.ts                  # UI components and helpers
+│   │
+│   ├── package.json               # Extension manifest and scripts
+│   └── tsconfig.json              # TypeScript configuration
+└── README.md                      # Project documentation
+
 ```
 
 ---
