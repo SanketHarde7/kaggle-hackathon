@@ -1,8 +1,14 @@
 {
   "name": "stackdecide",
   "displayName": "StackDecide",
-  "description": "AI-powered stack decision tool",
-  "version": "0.0.1",
+  "description": "AI-powered tech stack decision tool",
+  "publisher": "klarityai",
+  "version": "1.1.1",
+  "icon": "image.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SanketHarde7/kaggle-hackathon.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -12,6 +18,24 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "stackdecide-sidebar",
+          "title": "StackDecide",
+          "icon": "icon.png"
+        }
+      ]
+    },
+    "views": {
+      "stackdecide-sidebar": [
+        {
+          "type": "webview",
+          "id": "stackdecide.sidebarView",
+          "name": "Launcher"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "stackdecide.analyze",
