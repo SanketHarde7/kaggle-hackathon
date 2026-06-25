@@ -38,6 +38,23 @@ MAX_DECISIONS_AUTO = 10
 
 @router.post("/analyze")
 async def analyze_decision_route(request: DecisionRequest):
+    """
+    Analyzes a user's technical query to detect decisions, perform live web research,
+    and return scored recommendations.
+
+    Args:
+        request (DecisionRequest): The payload containing the user query, workspace path,
+            and optional manual context.
+
+    Returns:
+        JSONResponse | DecisionResponse: If the number of detected decisions exceeds the
+            automatic threshold and `proceed_anyway` is False, returns an approval
+            checkpoint JSON. Otherwise, returns a completed `DecisionResponse` with 
+            scores and an annotated prompt.
+
+    Raises:
+        HTTPException: For any validation, authentication, timeout, or processing errors.
+    """
     ensure_provider_configured()
     ensure_tavily_configured()
 
@@ -182,9 +199,19 @@ async def analyze_decision_route(request: DecisionRequest):
 @router.post("/annotate")
 async def annotate_prompt_route(request: DecisionRequest):
     """
-    Pure string templating endpoint — returns an annotated version of the original prompt.
-    Requires that /analyze has already been run (results come from memory).
-    In practice, the extension calls this immediately after /analyze completes.
+    Pure string templating endpoint.
+
+    Returns an annotated version of the original prompt using the results
+    previously fetched. This endpoint requires that `/analyze` has already
+    been executed.
+
+    Args:
+        request (DecisionRequest): The request containing the query.
+
+    Raises:
+        HTTPException: Currently returns a 501 Not Implemented because the
+            annotated prompt is generated directly in `/analyze` and attached
+            to the DecisionBrief to avoid session state complexity.
     """
     # The extension sends the brief directly from the analyze response.
     # Since we can't re-accept a DecisionBrief here without tying this endpoint

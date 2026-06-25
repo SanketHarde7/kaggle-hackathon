@@ -1,8 +1,26 @@
 import * as http from 'http';
 
+/**
+ * Structure of the response returned by the backend for analysis requests.
+ */
+export interface AnalysisResponse {
+    requires_approval?: boolean;
+    decision_count?: number;
+    decisions?: string[];
+    brief?: Record<string, any>; // Complex brief structure
+}
+
+/**
+ * Client for communicating with the StackDecide Python backend via HTTP.
+ * Handles making requests for analysis, health checks, and settings management.
+ */
 export class BackendClient {
     private baseUrl = 'http://localhost:8000';
 
+    /**
+     * Checks if the local backend server is running and healthy.
+     * @returns {Promise<boolean>} True if the server returns a 200 status code.
+     */
     public async checkHealth(): Promise<boolean> {
         return new Promise((resolve) => {
             const req = http.get(`${this.baseUrl}/health`, (res) => {
@@ -22,7 +40,15 @@ export class BackendClient {
         });
     }
 
-    public async analyze(query: string, workspacePath: string, manualContext?: string, proceedAnyway?: boolean): Promise<any> {
+    /**
+     * Sends a decision query to the backend for analysis.
+     * @param {string} query The user's decision request.
+     * @param {string} workspacePath The path to the active VS Code workspace.
+     * @param {string} [manualContext] Additional context provided by the user.
+     * @param {boolean} [proceedAnyway] If true, bypasses the approval check for large decision counts.
+     * @returns {Promise<AnalysisResponse>} The analysis result or an approval requirement payload.
+     */
+    public async analyze(query: string, workspacePath: string, manualContext?: string, proceedAnyway?: boolean): Promise<AnalysisResponse> {
         return new Promise((resolve, reject) => {
             const data = JSON.stringify({
                 query,
@@ -83,13 +109,20 @@ export class BackendClient {
         });
     }
 
-
+    /**
+     * Saves the LLM and Tavily API keys to the backend settings.
+     * @param {string} [provider] The LLM provider (e.g., 'gemini', 'openai').
+     * @param {string} [apiKey] The API key for the LLM provider.
+     * @param {string} [tavilyApiKey] The API key for the Tavily Search API.
+     * @returns {Promise<boolean>} True if the save was successful.
+     */
     public async saveSettings(provider?: string, apiKey?: string, tavilyApiKey?: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
-            const payload: any = {};
+            const payload: Record<string, string> = {};
             if (provider) payload.provider = provider;
             if (apiKey) payload.api_key = apiKey;
             if (tavilyApiKey) payload.tavily_api_key = tavilyApiKey;
+            
             const data = JSON.stringify(payload);
             const options = {
                 hostname: 'localhost',
@@ -125,6 +158,11 @@ export class BackendClient {
         });
     }
 
+    /**
+     * Retrieves the current configuration status from the backend.
+     * Keys themselves are never returned, only boolean flags indicating their presence.
+     * @returns {Promise<{provider: string | null, configured: boolean, tavily_configured?: boolean}>}
+     */
     public async getSettings(): Promise<{provider: string | null, configured: boolean, tavily_configured?: boolean}> {
         return new Promise((resolve, reject) => {
             const options = {

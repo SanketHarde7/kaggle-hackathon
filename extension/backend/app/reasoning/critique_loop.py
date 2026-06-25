@@ -33,7 +33,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _parse_json_from_llm(text: str) -> dict:
-    """Defensively strip markdown fences and parse JSON from LLM output."""
+    """
+    Defensively strip markdown fences and parse JSON from LLM output.
+
+    Args:
+        text (str): The raw string output from the LLM.
+
+    Returns:
+        dict: The parsed JSON dictionary.
+    """
     cleaned = text.strip()
     if cleaned.startswith("```json"):
         cleaned = cleaned[7:]
@@ -60,6 +68,15 @@ async def extract_decisions_and_plan_queries(
     1. Identifies every distinct technical decision in the user prompt.
     2. Performs context-mismatch detection up front.
     3. Generates exactly 2 search queries per non-mismatched decision.
+
+    Args:
+        user_prompt (str): The initial query from the user.
+        project_context (dict): The auto-detected and manual context of the workspace.
+        memory_context (str): History of past decisions in this workspace.
+        provider (LLMProvider): The LLM client instance.
+
+    Returns:
+        ExtractionResult: A structured object containing decisions, queries, and mismatches.
     """
     context_summary = json.dumps(project_context, indent=2)
     sibling_info = ""
@@ -152,7 +169,19 @@ async def _score_batch(
     research_by_decision: dict[str, str],
     provider: LLMProvider,
 ) -> list[DecisionResult]:
-    """Score a single batch of decisions in one LLM call."""
+    """
+    Score a single batch of decisions in one LLM call.
+
+    Args:
+        batch (list[str]): The subset of decisions to score in this batch.
+        user_prompt (str): The original user prompt.
+        project_context (dict): The workspace context.
+        research_by_decision (dict[str, str]): Cleaned research text keyed by decision.
+        provider (LLMProvider): The LLM client instance.
+
+    Returns:
+        list[DecisionResult]: The scored results for this batch.
+    """
     research_sections = ""
     for dec in batch:
         research_text = research_by_decision.get(dec, "(no research available)")
@@ -248,6 +277,17 @@ async def score_and_decide(
     Score all non-mismatched decisions.  When decision count exceeds
     MAX_DECISIONS_PER_SCORING_CALL, splits into concurrent batches so no
     single call is too large for free-tier token limits.
+
+    Args:
+        user_prompt (str): The original user prompt.
+        project_context (dict): The workspace context.
+        decisions (list[str]): List of all extracted decisions.
+        research_by_decision (dict[str, str]): Cleaned research text for valid decisions.
+        mismatch_warnings (dict[str, str]): Dict of warnings for invalid decisions.
+        provider (LLMProvider): The LLM client instance.
+
+    Returns:
+        list[DecisionResult]: The final aggregated and ordered list of decision results.
     """
     scoreable = [d for d in decisions if d not in mismatch_warnings]
     results: list[DecisionResult] = []
@@ -309,6 +349,13 @@ def generate_annotated_prompt(original_prompt: str, results: list[DecisionResult
     """
     Appends a 'Consider this when implementing' block to the original prompt,
     or returns a clarification message if all decisions were context mismatches.
+
+    Args:
+        original_prompt (str): The exact text the user submitted.
+        results (list[DecisionResult]): The list of scored decisions.
+
+    Returns:
+        str: The fully annotated string to be passed back to the user or IDE.
     """
     if not results:
         return f'I asked: "{original_prompt}"\n\nStackDecide couldn\'t identify any technical decisions in this prompt. Please ask a technical question or provide a project specification.'

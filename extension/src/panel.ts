@@ -2,6 +2,24 @@ import * as vscode from 'vscode';
 import { getWebviewContent } from './ui';
 import { BackendClient } from './backendClient';
 
+/**
+ * Interface representing the structure of messages sent from the Webview UI to the extension.
+ */
+interface WebviewMessage {
+    command: 'analyze' | 'saveSettings' | 'getSettings' | 'copyToClipboard';
+    query?: string;
+    manualContext?: string;
+    proceed_anyway?: boolean;
+    provider?: string;
+    apiKey?: string;
+    tavilyApiKey?: string;
+    text?: string;
+}
+
+/**
+ * Manages the StackDecide Webview Panel.
+ * Handles UI rendering, lifecycle events, and IPC communication with the Webview.
+ */
 export class StackDecidePanel {
     public static currentPanel: StackDecidePanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
@@ -9,6 +27,10 @@ export class StackDecidePanel {
 
     private _backendClient: BackendClient;
 
+    /**
+     * Private constructor used to instantiate the panel singleton.
+     * @param {vscode.WebviewPanel} panel The VS Code Webview panel instance.
+     */
     private constructor(panel: vscode.WebviewPanel) {
         this._panel = panel;
         this._backendClient = new BackendClient();
@@ -20,6 +42,10 @@ export class StackDecidePanel {
         this._setWebviewMessageListener(this._panel.webview);
     }
 
+    /**
+     * Creates or shows the existing StackDecide panel.
+     * @param {vscode.Uri} extensionUri The URI of the extension directory.
+     */
     public static createOrShow(extensionUri: vscode.Uri) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
@@ -40,6 +66,9 @@ export class StackDecidePanel {
         StackDecidePanel.currentPanel = new StackDecidePanel(panel);
     }
 
+    /**
+     * Disposes of the panel and cleans up resources.
+     */
     public dispose() {
         StackDecidePanel.currentPanel = undefined;
         this._panel.dispose();
@@ -51,13 +80,21 @@ export class StackDecidePanel {
         }
     }
 
-    private _getHtmlForWebview() {
+    /**
+     * Retrieves the HTML content for the Webview.
+     * @returns {string} The HTML string.
+     */
+    private _getHtmlForWebview(): string {
         return getWebviewContent();
     }
 
+    /**
+     * Sets up the listener for messages originating from the Webview frontend.
+     * @param {vscode.Webview} webview The Webview instance to listen to.
+     */
     private _setWebviewMessageListener(webview: vscode.Webview) {
         webview.onDidReceiveMessage(
-            async (message: any) => {
+            async (message: WebviewMessage) => {
                 switch (message.command) {
                     case 'analyze':
                         const query = message.query;
@@ -76,7 +113,7 @@ export class StackDecidePanel {
                         const workspacePath = workspaceFolders[0].uri.fsPath;
 
                         try {
-                            const result = await this._backendClient.analyze(query, workspacePath, manualContext, proceedAnyway);
+                            const result = await this._backendClient.analyze(query || '', workspacePath, manualContext, proceedAnyway);
                             if (result && result.requires_approval) {
                                 webview.postMessage({
                                     command: 'approvalRequired',
@@ -100,6 +137,9 @@ export class StackDecidePanel {
 
                     case 'saveSettings':
                         try {
+                            if (!message.provider) {
+                                throw new Error("Provider must be specified");
+                            }
                             await this._backendClient.saveSettings(message.provider, message.apiKey, message.tavilyApiKey);
                             webview.postMessage({ command: 'settingsSaved' });
                         } catch (err: any) {
@@ -122,7 +162,9 @@ export class StackDecidePanel {
                         return;
 
                     case 'copyToClipboard':
-                        vscode.env.clipboard.writeText(message.text);
+                        if (message.text) {
+                            vscode.env.clipboard.writeText(message.text);
+                        }
                         return;
                 }
             },

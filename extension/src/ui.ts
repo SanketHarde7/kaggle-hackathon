@@ -1,10 +1,10 @@
-export function getWebviewContent() {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StackDecide</title>
+/**
+ * Generates the CSS styles for the Webview panel.
+ * 
+ * @returns {string} The CSS style block.
+ */
+function getStyles(): string {
+    return `
     <style>
         body {
             font-family: var(--vscode-font-family);
@@ -164,71 +164,19 @@ export function getWebviewContent() {
             margin-top: 12px;
         }
     </style>
-</head>
-<body>
+    `;
+}
 
-    <div class="header">
-        <h2>StackDecide</h2>
-        <button class="icon-btn" id="toggle-settings-btn" title="Settings">&#9881;</button>
-    </div>
-
-    <div id="error-msg" class="error"></div>
-    <div id="success-msg" class="success"></div>
-
-    <!-- Analysis View -->
-    <div id="analysis-view">
-        <label for="query-input">Decision Query</label>
-        <textarea id="query-input" placeholder="e.g. Should I use Zustand or Redux? Or paste a full spec with multiple decisions."></textarea>
-
-        <label for="manual-context-input">Additional Context (Optional)</label>
-        <textarea id="manual-context-input" placeholder="e.g. Our team mostly knows React..." style="min-height: 50px;"></textarea>
-
-        <div class="spinner" id="loading-spinner"></div>
-        <button id="submit-btn" style="width: 100%;">Analyze Decision</button>
-
-        <!-- Approval checkpoint (shown when >10 decisions detected) -->
-        <div id="approval-container" style="display:none; margin-top:12px;">
-            <div class="approval-box">
-                <strong>&#8505; Approval Required</strong><br>
-                StackDecide detected <span id="approval-count">N</span> distinct decisions. Do you want to analyze all of them?
-                <div id="approval-decisions" style="margin-top:8px; font-size:0.9em; opacity:0.85;"></div>
-                <button id="approval-confirm-btn" style="margin-top:10px; width:100%;">Yes, Analyze All</button>
-            </div>
-        </div>
-
-        <div id="results-container">
-            <div id="decisions-list"></div>
-            <div class="copy-btn-row">
-                <button id="copy-annotated-btn" style="display:none; font-size:0.85em; padding:4px 10px;">Copy Annotated Prompt</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Settings View -->
-    <div id="settings-view">
-        <h3>Settings</h3>
-
-        <label for="provider-select">LLM Provider</label>
-        <select id="provider-select">
-            <option value="gemini">Gemini</option>
-            <option value="claude">Claude</option>
-            <option value="gpt">GPT</option>
-            <option value="grok">Grok</option>
-            <option value="groq">Groq</option>
-            <option value="openrouter">OpenRouter</option>
-        </select>
-
-        <label for="api-key-input">LLM API Key</label>
-        <input type="password" id="api-key-input" placeholder="Enter LLM API Key">
-
-        <label for="tavily-api-key-input" style="margin-top:12px;">Tavily Search API Key</label>
-        <div style="font-size:0.85em; opacity:0.8; margin-bottom:4px;">Get a free key at tavily.com (no card required)</div>
-        <input type="password" id="tavily-api-key-input" placeholder="Enter Tavily API Key">
-
-        <button id="save-settings-btn" style="width:100%; margin-top:12px;">Save Settings</button>
-    </div>
-
+/**
+ * Generates the client-side JavaScript for the Webview panel.
+ * Handles DOM manipulation, IPC communication, and UI rendering logic.
+ * 
+ * @returns {string} The script block.
+ */
+function getScripts(): string {
+    return `
     <script>
+        // Use any type or cast to specific API type in an actual project
         const vscode = acquireVsCodeApi();
 
         const analysisView = document.getElementById('analysis-view');
@@ -354,18 +302,22 @@ export function getWebviewContent() {
             resultsContainer.style.display = 'none';
             clearMessages();
         }
+        
         function stopLoading() {
             submitBtn.disabled = false;
             spinner.style.display = 'none';
         }
+        
         function clearMessages() {
             errorMsg.innerText = '';
             successMsg.innerText = '';
         }
+        
         function showError(msg) {
             errorMsg.innerText = msg;
             successMsg.innerText = '';
         }
+        
         function showSuccess(msg) {
             successMsg.innerText = msg;
             errorMsg.innerText = '';
@@ -377,6 +329,11 @@ export function getWebviewContent() {
             approvalContainer.style.display = 'block';
         }
 
+        /**
+         * Safely escapes HTML strings to prevent XSS attacks.
+         * @param {string} str The unsafe HTML string.
+         * @returns {string} The escaped string.
+         */
         function escapeHtml(str) {
             return String(str)
                 .replace(/&/g, '&amp;')
@@ -385,6 +342,10 @@ export function getWebviewContent() {
                 .replace(/"/g, '&quot;');
         }
 
+        /**
+         * Renders the analysis results in the UI.
+         * @param {object} brief The decision brief payload containing results.
+         */
         function showResults(brief) {
             resultsContainer.style.display = 'block';
             currentAnnotatedPrompt = brief.annotated_prompt || '';
@@ -448,6 +409,88 @@ export function getWebviewContent() {
 
         vscode.postMessage({ command: 'getSettings' });
     </script>
+    `;
+}
+
+/**
+ * Generates the complete HTML layout structure for the StackDecide Webview.
+ * 
+ * @returns {string} The full HTML document string.
+ */
+export function getWebviewContent(): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StackDecide</title>
+    \${getStyles()}
+</head>
+<body>
+
+    <div class="header">
+        <h2>StackDecide</h2>
+        <button class="icon-btn" id="toggle-settings-btn" title="Settings">&#9881;</button>
+    </div>
+
+    <div id="error-msg" class="error"></div>
+    <div id="success-msg" class="success"></div>
+
+    <!-- Analysis View -->
+    <div id="analysis-view">
+        <label for="query-input">Decision Query</label>
+        <textarea id="query-input" placeholder="e.g. Should I use Zustand or Redux? Or paste a full spec with multiple decisions."></textarea>
+
+        <label for="manual-context-input">Additional Context (Optional)</label>
+        <textarea id="manual-context-input" placeholder="e.g. Our team mostly knows React..." style="min-height: 50px;"></textarea>
+
+        <div class="spinner" id="loading-spinner"></div>
+        <button id="submit-btn" style="width: 100%;">Analyze Decision</button>
+
+        <!-- Approval checkpoint (shown when >10 decisions detected) -->
+        <div id="approval-container" style="display:none; margin-top:12px;">
+            <div class="approval-box">
+                <strong>&#8505; Approval Required</strong><br>
+                StackDecide detected <span id="approval-count">N</span> distinct decisions. Do you want to analyze all of them?
+                <div id="approval-decisions" style="margin-top:8px; font-size:0.9em; opacity:0.85;"></div>
+                <button id="approval-confirm-btn" style="margin-top:10px; width:100%;">Yes, Analyze All</button>
+            </div>
+        </div>
+
+        <div id="results-container">
+            <div id="decisions-list"></div>
+            <div class="copy-btn-row">
+                <button id="copy-annotated-btn" style="display:none; font-size:0.85em; padding:4px 10px;">Copy Annotated Prompt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settings-view">
+        <h3>Settings</h3>
+
+        <label for="provider-select">LLM Provider</label>
+        <select id="provider-select">
+            <option value="gemini">Gemini</option>
+            <option value="claude">Claude</option>
+            <option value="gpt">GPT</option>
+            <option value="grok">Grok</option>
+            <option value="groq">Groq</option>
+            <option value="openrouter">OpenRouter</option>
+        </select>
+
+        <label for="api-key-input">LLM API Key</label>
+        <input type="password" id="api-key-input" placeholder="Enter LLM API Key">
+
+        <label for="tavily-api-key-input" style="margin-top:12px;">Tavily Search API Key</label>
+        <div style="font-size:0.85em; opacity:0.8; margin-bottom:4px;">Get a free key at tavily.com (no card required)</div>
+        <input type="password" id="tavily-api-key-input" placeholder="Enter Tavily API Key">
+
+        <button id="save-settings-btn" style="width:100%; margin-top:12px;">Save Settings</button>
+    </div>
+
+    \${getScripts()}
+
 </body>
 </html>`;
 }

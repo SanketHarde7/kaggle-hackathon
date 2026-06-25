@@ -12,12 +12,29 @@ from app.config import get_active_tavily_key
 logger = logging.getLogger(__name__)
 
 class SearchProviderError(Exception):
+    """Exception raised for general search provider failures or timeouts."""
     pass
 
 class SearchProviderAuthError(Exception):
+    """Exception raised when the Tavily API key is missing or invalid."""
     pass
 
 async def search(query: str, max_results: int = 5) -> list[dict]:
+    """
+    Executes a web search query using the Tavily MCP endpoint.
+
+    Args:
+        query (str): The search term or query string.
+        max_results (int, optional): The maximum number of results to fetch. Defaults to 5.
+
+    Returns:
+        list[dict]: A list of dictionaries, where each dict represents a search result
+            containing 'title', 'snippet', and 'url' keys.
+
+    Raises:
+        SearchProviderAuthError: If the Tavily API key is invalid or unauthorized.
+        SearchProviderError: If the search request fails, times out, or returns invalid data.
+    """
     tavily_key = get_active_tavily_key()
     if not tavily_key:
         raise SearchProviderError("Tavily API key is not configured.")
@@ -115,4 +132,9 @@ async def search(query: str, max_results: int = 5) -> list[dict]:
         if provider_err:
             raise provider_err
 
-        raise SearchProviderError(f"Search failed: {e}")
+        # Security: sanitize error message to ensure the API key is never leaked in tracebacks
+        err_str = str(e)
+        if tavily_key and tavily_key in err_str:
+            err_str = err_str.replace(tavily_key, "HIDDEN_API_KEY")
+            
+        raise SearchProviderError(f"Search failed: {err_str}")
