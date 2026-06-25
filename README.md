@@ -1,12 +1,9 @@
 
-**setup**
+# StackDecide: Stop AI From Guessing Your Tech Stack
+🌐An autonomous agent that intercepts prompts, researches live options, and stops stale AI data from dictating your architecture.
 
 
-https://github.com/user-attachments/assets/2540540f-357f-4d5c-b456-70fc438149f3
-
-# StackDecide
-
-**Should you use Zustand or Redux? SQLite or Postgres? REST or WebSockets? StackDecide researches it, scores the options, and tells you — with real-time information, not stale training data — before you ask your AI coding agent to just pick one for you.**
+➡️Should you use Zustand or Redux? SQLite or Postgres? REST or WebSockets? StackDecide researches it, scores the options, and tells you — with real-time information, not stale training data — before you ask your AI coding agent to just pick one for you.
 
 StackDecide is a VS Code extension + agentic backend that helps you **choose libraries, frameworks, and architecture patterns** for your project. Paste in a single question, or a whole multi-part spec describing what you're building — StackDecide extracts every distinct technical decision hiding inside it, researches each one on the live web, scores the realistic options against your actual codebase, and hands you back a clear, comparable result — plus a ready-to-paste prompt to hand the decisions off to Codex, Antigravity, or any AI coding agent.
 
@@ -115,6 +112,11 @@ StackDecide sits between you and your coding agent. Before you ask Codex/Antigra
 
 ## Setup
 
+
+https://github.com/user-attachments/assets/2540540f-357f-4d5c-b456-70fc438149f3
+
+
+
 ### Prerequisites
 - Python 3.10+
 - Node.js + npm
@@ -217,4 +219,4 @@ stackdecide/
 
 ## Built With
 
-Built as part of Kaggle's *AI Agents: Intensive Vibe Coding* course, using an AI-assisted ("vibe coding") workflow itself — architecture and prompts were planned and reviewed iteratively, with implementation carried out by AI coding agents (Antigravity, with portions via Kimi) under close human review at every step. This included a full mid-build architectural refactor — replacing an early 6-LLM-call-per-decision reasoning loop with a leaner 2-call extraction-and-scoring engine — after the original design proved too rate-limit-fragile on free-tier APIs, and catching several real reasoning bugs along the way (such as an early version that recommended a "Python-compatible Zustand alternative" for a question that didn't apply to the project at all) before they shipped.
+Built as part of Kaggle's *AI Agents: Intensive Vibe Coding* course, using an AI-assisted ("vibe coding") workflow itself — architecture and prompts were planned and reviewed iteratively, with implementation carried out by AI coding agents (Antigravity, with portions via gemini) under close human review at every step. This included a full mid-build architectural refactor — replacing an early 6-LLM-call-per-decision reasoning loop with a leaner 2-call extraction-and-scoring engine — after the original design proved too rate-limit-fragile on free-tier APIs, and catching several real reasoning bugs along the way (such as an early version that recommended a "Python-compatible Zustand alternative" for a question that didn't apply to the project at all) before they shipped.
